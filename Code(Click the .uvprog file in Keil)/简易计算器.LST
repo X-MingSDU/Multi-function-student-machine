@@ -1,0 +1,837 @@
+C51 COMPILER V9.59.0.0   __________                                                        10/15/2019 21:12:29 PAGE 1   
+
+
+C51 COMPILER V9.59.0.0, COMPILATION OF MODULE __________
+OBJECT MODULE PLACED IN 简易计算器.OBJ
+COMPILER INVOKED BY: E:\3shiyanban\KEIL5\keil525\UV4\959\C51\BIN\C51.EXE 简易计算器.c OPTIMIZE(8,SPEED) BROWSE DEBUG OBJ
+                    -ECTEXTEND TABS(2)
+
+line level    source
+
+   1          #include<reg52.h>
+   2          #include "xyv17b.h"
+   3          #include "lcd1602.h"
+   4          //#include<stdlib.h>
+   5          #define uchar unsigned char  //无符号字符型 宏定义  变量范围0~255
+   6          #define uint  unsigned int   //无符号整型 宏定义  变量范围0~65535
+   7          #include "ds1302.h"
+   8          #include "buzzer.h"
+   9          
+  10          extern void *memset  (void *s, char val, int n);
+  11          extern float atof (char *s1);
+  12          extern int sprintf  (char *, const char *, ...);
+  13          extern int strlen (char *);
+  14          
+  15          float num1;              //  保存第一个数
+  16          float num2;              //  保存第二个数
+  17          uchar jjcc;              //  加减乘除标志变量
+  18          uchar Lcd_Str[17];   //  显示区缓存
+  19          uchar Num_str[17];
+  20          uchar value,menu_1;
+  21          uchar Lcd_num2_add = 0;    //  第二个数据开始位的增量
+  22          uchar idata Lcd_dis1_i = 0;    //  记录显示第一行字符
+  23          uchar idata Lcd_num1_i = 0;    //  记录num1 是几位数
+  24          uchar idata Lcd_num2_i = 0;    //  记录num2 是几位数
+  25          uchar idata num_key1;
+  26          
+  27          uchar idata Dian_i = 0;        //  小数点位数
+  28          
+  29          sbit dq   = P1^4;   //18b20 IO口的定义
+  30          uint temperature ;    //温度变量
+  31          
+  32          
+  33          /********************** ********************
+  34          函数名称：delayms;
+  35          函数功能：延时z毫秒；
+  36          形    参：z (延时时间参数)
+  37                
+  38          *******************************************/
+  39          void delayms(uchar z)
+  40          {
+  41   1         uint x,y;
+  42   1          for(x=z;x>0;x--)
+  43   1          for(y=110;y>0;y--);
+  44   1      }
+  45          /******************************************/
+  46          sbit key_delete = P1^5;    //删除键
+  47          sbit key_qiehuan = P1^6; //切换键
+  48          //sbit key_stop = P1^7;
+  49          //sbit key_nextt = P3^7;
+  50          
+  51          uchar Key_io;     //  暂存IO值
+  52          uchar Key_jl;     //  松手检测自锁变量
+  53          uchar Key_value;    //  返回键值
+  54          uchar Key_D_bit;
+C51 COMPILER V9.59.0.0   __________                                                        10/15/2019 21:12:29 PAGE 2   
+
+  55          bit Key_qh_bit;
+  56          uchar menu_2;
+  57          
+  58          uchar saom(void)
+  59          {
+  60   1         Key_value=20;
+  61   1         P2=0xf0;         //  拉低第四位
+  62   1         Key_io=P2;
+  63   1         if(Key_io!=0xf0)   //  查看搞四位是否有低电平
+  64   1          {
+  65   2          Key_io|=0x0f;   //  保持高四位出现低电平的管脚，拉高第四位
+  66   2          P2=Key_io;      //  重新复制IO口
+  67   2          Key_io=P2;      //  读取IO信息，确定键值
+  68   2          if(Key_jl==0)   //  自锁变量，松手检测
+  69   2           {
+  70   3             Key_jl=1;
+  71   3             switch(Key_io)
+  72   3             {
+  73   4               case 0x7e: Key_value=10;
+  74   4                        break ;
+  75   4      
+  76   4             case 0x7d: Key_value=0;
+  77   4                        break ;
+  78   4      
+  79   4             case 0x7b: Key_value=11;
+  80   4                        break ;
+  81   4      
+  82   4             case 0x77: Key_value=15;
+  83   4                        break ;
+  84   4      
+  85   4      
+  86   4             case 0xbe: Key_value=7;
+  87   4                        break ;
+  88   4      
+  89   4             case 0xbd: Key_value=8;
+  90   4                        break ;
+  91   4      
+  92   4             case 0xbb: Key_value=9;
+  93   4                        break ;
+  94   4      
+  95   4             case 0xb7: Key_value=14;
+  96   4                        break ;
+  97   4      
+  98   4      
+  99   4             case 0xde: Key_value=4;
+ 100   4                        break ;
+ 101   4      
+ 102   4             case 0xdd: Key_value=5;
+ 103   4                        break ;
+ 104   4      
+ 105   4             case 0xdb: Key_value=6;
+ 106   4                        break ;
+ 107   4      
+ 108   4             case 0xd7: Key_value=13;
+ 109   4                        break ;
+ 110   4      
+ 111   4      
+ 112   4             case 0xee: Key_value=1;
+ 113   4                        break ;
+ 114   4      
+ 115   4             case 0xed: Key_value=2;
+ 116   4                        break ;
+C51 COMPILER V9.59.0.0   __________                                                        10/15/2019 21:12:29 PAGE 3   
+
+ 117   4      
+ 118   4             case 0xeb: Key_value=3;
+ 119   4                        break ;
+ 120   4      
+ 121   4             case 0xe7: Key_value=12;
+ 122   4                        break ;
+ 123   4             }
+ 124   3      //       write_sfm2(2,0,Key_value);
+ 125   3      //       write_sfm16(2,5,Key_io);
+ 126   3           }
+ 127   2        }
+ 128   1         else
+ 129   1          {
+ 130   2          Key_jl=0;
+ 131   2        }
+ 132   1      
+ 133   1        
+ 134   1        
+ 135   1        key_delete = 1;
+ 136   1        if(key_delete==0)     //删除键
+ 137   1         {
+ 138   2           if(Key_D_bit==0)
+ 139   2          {
+ 140   3               Key_D_bit = 1;
+ 141   3             Key_value = 17;
+ 142   3          }
+ 143   2         }
+ 144   1        else
+ 145   1         {
+ 146   2           Key_D_bit = 0;
+ 147   2         }
+ 148   1      
+ 149   1      
+ 150   1         key_qiehuan = 1;          //切换键
+ 151   1        if(key_qiehuan==0)      //删除键
+ 152   1         {
+ 153   2           if(Key_qh_bit==0)
+ 154   2          {
+ 155   3               Key_qh_bit = 1;
+ 156   3             Key_value = 18;
+ 157   3          }
+ 158   2         }
+ 159   1        else
+ 160   1         {
+ 161   2           Key_qh_bit = 0;
+ 162   2         }
+ 163   1      
+ 164   1        return Key_value;
+ 165   1      }
+ 166          
+ 167          
+ 168          uchar XS_JG(uchar add,float n)
+ 169          {
+ 170   1        uchar len,p=0;
+ 171   1        memset(Lcd_Str,0,16)    ;     //内存空间初始化  
+ 172   1        sprintf(Lcd_Str,"%e",n) ;
+ 173   1        while(Lcd_Str[p]!='e')
+ 174   1         {
+ 175   2           p++;
+ 176   2         }
+ 177   1        if(Lcd_Str[p+2]==0x30&&Lcd_Str[p+3]<0x37)
+ 178   1         {
+C51 COMPILER V9.59.0.0   __________                                                        10/15/2019 21:12:29 PAGE 4   
+
+ 179   2            sprintf(Lcd_Str,"%f",n);
+ 180   2          len = strlen(Lcd_Str)  ;
+ 181   2          while(len)
+ 182   2           {
+ 183   3             if(Lcd_Str[len-1]=='.')
+ 184   3            { 
+ 185   4              Lcd_Str[len-1] = 0;  
+ 186   4            break;
+ 187   4            }
+ 188   3             if(Lcd_Str[len-1]=='0') //  去除数据中多余的0与小数点
+ 189   3            {  
+ 190   4              Lcd_Str[len-1] = 0;   
+ 191   4            }
+ 192   3           else
+ 193   3            {
+ 194   4              break;
+ 195   4            }
+ 196   3             len--;
+ 197   3           }
+ 198   2         }
+ 199   1        else
+ 200   1         {
+ 201   2            
+ 202   2            while(p)
+ 203   2           {
+ 204   3             if(Lcd_Str[p-1]=='.')
+ 205   3            { 
+ 206   4              Lcd_Str[p-1] =' ';  
+ 207   4            break;
+ 208   4            }
+ 209   3             if(Lcd_Str[p-1]=='0') //  去除数据中多余的0与小数点
+ 210   3            {  
+ 211   4              Lcd_Str[p-1] = ' ';   
+ 212   4            }
+ 213   3           else
+ 214   3            {
+ 215   4              break;
+ 216   4            }
+ 217   3             p--;
+ 218   3           }
+ 219   2         }
+ 220   1        
+ 221   1       
+ 222   1      
+ 223   1        Dis_str(add,"                "); 
+ 224   1        Dis_str(add,Lcd_Str);  
+ 225   1        return len;
+ 226   1      }
+ 227          void fuhao(uchar s)
+ 228          {
+ 229   1        if(jjcc<5)
+ 230   1          {   
+ 231   2           if(Num_str[0]!='A')
+ 232   2            {    
+ 233   3           if(Num_str[0]<=0x39&&Num_str[0]>=0x30&&jjcc != 2)
+ 234   3           {
+ 235   4              num1=atof(Num_str);    //  从数组中取第二个数字
+ 236   4        //    XS_JG(0x8a,num1);
+ 237   4           }  
+ 238   3          }    
+ 239   2           if(jjcc==0)
+ 240   2           {
+C51 COMPILER V9.59.0.0   __________                                                        10/15/2019 21:12:29 PAGE 5   
+
+ 241   3            Num_str[Lcd_dis1_i] =   s     ;
+ 242   3              Lcd_dis1_i++;
+ 243   3          Lcd_num2_add =  Lcd_dis1_i   ;
+ 244   3           }
+ 245   2           else
+ 246   2           {
+ 247   3            if(Num_str[Lcd_num2_add]==0)
+ 248   3            Num_str[Lcd_dis1_i-1] = s   ;
+ 249   3           }
+ 250   2          
+ 251   2           
+ 252   2             Dis_str(0x80,Num_str); 
+ 253   2           
+ 254   2        }
+ 255   1        if(jjcc==5)
+ 256   1          {
+ 257   2           Lcd_dis1_i = 4 ;
+ 258   2           Lcd_num2_i = 0 ;
+ 259   2           Lcd_num2_add = 4;
+ 260   2           memset(Num_str,0,16);    //内存空间初始化  
+ 261   2           Num_str[0] = 'A';
+ 262   2           Num_str[1] = 'n';
+ 263   2           Num_str[2] = 's';
+ 264   2           Num_str[3] = s;
+ 265   2           Dis_str(0x80,"                ");
+ 266   2           Dis_str(0x80,Num_str);
+ 267   2        }
+ 268   1      }
+ 269          
+ 270          /***********************18b20初始化函数*****************************/
+ 271          void init_18b20()
+ 272          {
+ 273   1        bit q;
+ 274   1        dq = 1;       //把总线拿高
+ 275   1        delay_lcd(1);     //15us
+ 276   1        dq = 0;       //给复位脉冲
+ 277   1        delay_lcd(80);    //750us
+ 278   1        dq = 1;       //把总线拿高 等待
+ 279   1        delay_lcd(10);    //110us
+ 280   1        q = dq;       //读取18b20初始化信号
+ 281   1        delay_lcd(20);    //200us
+ 282   1        dq = 1;       //把总线拿高 释放总线
+ 283   1      }
+ 284          
+ 285          /*************写18b20内的数据***************/
+ 286          void write_18b20(uchar dat)
+ 287          {
+ 288   1        uchar i;
+ 289   1        for(i=0;i<8;i++)
+ 290   1        {          //写数据是低位开始
+ 291   2          dq = 0;      //把总线拿低写时间隙开始 
+ 292   2          dq = dat & 0x01; //向18b20总线写数据了
+ 293   2          delay_lcd(5);  // 60us
+ 294   2          dq = 1;      //释放总线
+ 295   2          dat >>= 1;
+ 296   2        } 
+ 297   1      }
+ 298          
+ 299          /*************读取18b20内的数据***************/
+ 300          uchar read_18b20()
+ 301          {
+ 302   1        uchar i,value;
+C51 COMPILER V9.59.0.0   __________                                                        10/15/2019 21:12:29 PAGE 6   
+
+ 303   1        for(i=0;i<8;i++)
+ 304   1        {
+ 305   2          dq = 0;      //把总线拿低读时间隙开始 
+ 306   2          value >>= 1;   //读数据是低位开始
+ 307   2          dq = 1;      //释放总线
+ 308   2          if(dq == 1)    //开始读写数据 
+ 309   2            value |= 0x80;
+ 310   2          delay_lcd(5);  //60us 读一个时间隙最少要保持60us的时间
+ 311   2        }
+ 312   1        return value;    //返回数据
+ 313   1      }
+ 314          
+ 315          /*************读取温度的值 读出来的是小数***************/
+ 316          uint read_temp()
+ 317          {
+ 318   1        uint value;
+ 319   1        uchar low;         //在读取温度的时候如果中断的太频繁了，就应该把中断给关了，否则会影响到18b20的时序
+ 320   1        init_18b20();      //初始化18b20
+ 321   1        write_18b20(0xcc);     //跳过64位ROM
+ 322   1        write_18b20(0x44);     //启动一次温度转换命令
+ 323   1        delay_lcd(50);       //500us
+ 324   1      
+ 325   1        init_18b20();      //初始化18b20
+ 326   1        
+ 327   1        write_18b20(0xcc);     //跳过64位ROM
+ 328   1        write_18b20(0xbe);     //发出读取暂存器命令
+ 329   1        
+ 330   1        EA = 0;
+ 331   1        low = read_18b20();    //读温度低字节
+ 332   1        value = read_18b20();  //读温度高字节
+ 333   1        EA = 1;
+ 334   1        value <<= 8;       //把温度的高位左移8位
+ 335   1        value |= low;      //把读出的温度低位放到value的低八位中
+ 336   1        value *= 0.625;        //转换到温度值 小数
+ 337   1        return value;      //返回读出的温度 带小数
+ 338   1      }
+ 339          
+ 340          
+ 341          /******************写星期函数*******************/
+ 342          void write_week(uchar hang,uchar add,uchar week)//写星期函数
+ 343          {
+ 344   1        if(hang==1)   
+ 345   1          write_1602com(0x80+add);
+ 346   1        else
+ 347   1          write_1602com(0x80+0x40+add);   
+ 348   1        switch(week)
+ 349   1        {
+ 350   2          case 1:write_1602dat('M');//星期数为1时，显示
+ 351   2               write_1602dat('O');
+ 352   2               write_1602dat('N');
+ 353   2               break;
+ 354   2           
+ 355   2          case 2:write_1602dat('T');//星期数据为2时显示
+ 356   2               write_1602dat('U');
+ 357   2               write_1602dat('E');
+ 358   2               break;
+ 359   2          
+ 360   2          case 3:write_1602dat('W');//星期数据为3时显示
+ 361   2               write_1602dat('E');
+ 362   2               write_1602dat('D');
+ 363   2               break;
+ 364   2          
+C51 COMPILER V9.59.0.0   __________                                                        10/15/2019 21:12:29 PAGE 7   
+
+ 365   2          case 4:write_1602dat('T');//星期数据为4是显示
+ 366   2               write_1602dat('H');
+ 367   2               write_1602dat('U');
+ 368   2               break;
+ 369   2          
+ 370   2          case 5:write_1602dat('F');//星期数据为5时显示
+ 371   2               write_1602dat('R');
+ 372   2               write_1602dat('I');
+ 373   2               break;
+ 374   2          
+ 375   2          case 6:write_1602dat('S');//星期数据为6时显示
+ 376   2               write_1602dat('T');
+ 377   2               write_1602dat('A');
+ 378   2               break;
+ 379   2          
+ 380   2          case 7:write_1602dat('S');//星期数据为7时显示
+ 381   2               write_1602dat('U');
+ 382   2               write_1602dat('N');
+ 383   2               break;
+ 384   2        }
+ 385   1      }
+ 386          
+ 387          /*************定时器0初始化程序***************/
+ 388          void init_1602_ds1302()
+ 389          {
+ 390   1        write_sfm2_ds1302(1,1,shi);      //显示时
+ 391   1        write_sfm2_ds1302(1,4,fen);      //显示分
+ 392   1        write_sfm2_ds1302(1,7,miao);     //显示秒
+ 393   1        write_week(2,12,week);
+ 394   1        write_sfm3_18B20(1,11,temperature);    //显示温度
+ 395   1        write_sfm2_ds1302(2,2,nian);   //显示年
+ 396   1        write_sfm2_ds1302(2,5,yue);    //显示月 
+ 397   1        write_sfm2_ds1302(2,8,ri);     //显示日   
+ 398   1      }
+ 399          
+ 400          /**********************设置函数************************/
+ 401          void jisuanqi()
+ 402          {
+ 403   1        switch(num_key1)
+ 404   1        {
+ 405   2        case 11:  if(Num_str[Lcd_num2_add]<=0x39&&Num_str[Lcd_num2_add]>=0x30)
+ 406   2                  num2=atof(Num_str+Lcd_num2_add);     //  从数组中取第二个数字
+ 407   2              else
+ 408   2              break;
+ 409   2              Lcd_num2_i=0 ;
+ 410   2          //    XS_JG(0x8a,num2);
+ 411   2                switch(jjcc)
+ 412   2               {
+ 413   3        
+ 414   3               case 1: num1+=num2;           // 加
+ 415   3                                   
+ 416   3                       break;
+ 417   3               case 2: num1-=num2;           // 减
+ 418   3                      
+ 419   3                       break;
+ 420   3               case 3: num1*=num2;           // 乘
+ 421   3                       
+ 422   3                       break;
+ 423   3               case 4: num1/=num2;           // 除
+ 424   3                       
+ 425   3                       break;      
+ 426   3              }
+C51 COMPILER V9.59.0.0   __________                                                        10/15/2019 21:12:29 PAGE 8   
+
+ 427   2              XS_JG(0xc0,num1);
+ 428   2              Dis_str(0x80+Lcd_dis1_i,"=");
+ 429   2              jjcc=5;                                 //  等号标志
+ 430   2                break;  
+ 431   2        case 12:  if(Num_str[0]==0||Lcd_num2_i>0)
+ 432   2                    break;
+ 433   2                  fuhao('+');
+ 434   2                  jjcc=1;Dian_i=0 ;
+ 435   2                  break;         //  按下加号键
+ 436   2        case 13:  if(Num_str[0]==0||Lcd_num2_i>0)
+ 437   2                    break;
+ 438   2                  fuhao('-');
+ 439   2                  jjcc=2;Dian_i=0 ;                   
+ 440   2                  break;         //  按下减号键
+ 441   2        case 14:  if(Num_str[0]==0||Lcd_num2_i>0)
+ 442   2                    break;
+ 443   2                  fuhao('*');
+ 444   2              jjcc=3;Dian_i=0 ;
+ 445   2                  break;         //  按下乘号键
+ 446   2        case 15:  if(Num_str[0]==0||Lcd_num2_i>0)
+ 447   2                    break;
+ 448   2                  fuhao('/');    
+ 449   2                  jjcc=4;Dian_i=0 ;         
+ 450   2                  break;         //  按下除号键
+ 451   2        case 10:  if(Dian_i==0&&(Lcd_num1_i != 0||Lcd_num2_i != 0))// 输入小数点时前面必须有数字
+ 452   2                  {
+ 453   3                  Dian_i++;         //  小数点
+ 454   3              Num_str[Lcd_dis1_i] = '.' ;
+ 455   3              Lcd_dis1_i++;
+ 456   3              Dis_str(0x80,Num_str); 
+ 457   3              }
+ 458   2                  break;
+ 459   2      /*********************   删除一个数字*******************/
+ 460   2        case 17:  if(Lcd_dis1_i==0)     
+ 461   2                    break;
+ 462   2               
+ 463   2      /*********************                  删除一个数字                          删除小数点              按等
+             -号后不再撤销           *******************/
+ 464   2              if(((Num_str[Lcd_dis1_i-1]<=0x39&&Num_str[Lcd_dis1_i-1]>=0x30)||Num_str[Lcd_dis1_i-1]=='.')&&jjcc!=5)
+ 465   2               {
+ 466   3                 if(Num_str[Lcd_dis1_i-1]=='.')
+ 467   3                { Dian_i = 0;   }
+ 468   3               else
+ 469   3                {
+ 470   4                  if(jjcc==0)
+ 471   4                 {
+ 472   5                   Lcd_num1_i--;
+ 473   5                 }
+ 474   4                else
+ 475   4                 {
+ 476   5                   Lcd_num2_i--;
+ 477   5                 }
+ 478   4                }
+ 479   3                     Lcd_dis1_i--;  
+ 480   3               Lcd_num2_add =  Lcd_dis1_i;
+ 481   3               Num_str[Lcd_dis1_i] = 0 ;   
+ 482   3               Dis_str(0x80,"                ");
+ 483   3                 Dis_str(0x80,Num_str);
+ 484   3                 
+ 485   3               }
+ 486   2             
+ 487   2              if(Lcd_dis1_i==0)     
+C51 COMPILER V9.59.0.0   __________                                                        10/15/2019 21:12:29 PAGE 9   
+
+ 488   2                    write_1602dat('0');
+ 489   2                  break;                        
+ 490   2        
+ 491   2        default:  if(num_key1<10&&Dian_i<7)     // 显示对应的数字键,输入的小数点后位数小于7位
+ 492   2                {
+ 493   3                   if(jjcc ==5)
+ 494   3                 {
+ 495   4                   jjcc = 0;
+ 496   4                   Lcd_dis1_i = 0 ;
+ 497   4                   Lcd_num1_i = 0 ;
+ 498   4                     Lcd_num2_i = 0 ;
+ 499   4                     Lcd_num2_add = 0;
+ 500   4                   Dian_i = 0;
+ 501   4                     memset(Num_str,0,16);
+ 502   4                   Dis_str(0x80,"                ");   //  清除显示
+ 503   4                   Dis_str(0xc0,"                ");
+ 504   4                 }
+ 505   3                   if(jjcc==0)
+ 506   3                 {
+ 507   4                  if(Lcd_num1_i<7)
+ 508   4                    {
+ 509   5                    Num_str[Lcd_dis1_i] = num_key1+0x30;
+ 510   5                      Dis_str(0x80,Num_str); 
+ 511   5                      Lcd_dis1_i++;
+ 512   5                    Lcd_num2_add =  Lcd_dis1_i;
+ 513   5                      Lcd_num1_i++; 
+ 514   5                    }
+ 515   4                    
+ 516   4                 }
+ 517   3                 else if(jjcc<5)
+ 518   3                 {
+ 519   4                  if(Lcd_num2_i<7&&Lcd_dis1_i<17)
+ 520   4                    {
+ 521   5                    Num_str[Lcd_dis1_i] = num_key1+0x30;
+ 522   5                      Dis_str(0x80,Num_str); 
+ 523   5                      Lcd_dis1_i++;   
+ 524   5                      Lcd_num2_i++;
+ 525   5                    } 
+ 526   4                 }                
+ 527   3                }            
+ 528   2         break;                         
+ 529   2        }           
+ 530   1      } 
+ 531          
+ 532          /**********************设置函数************************/
+ 533          void key_with()
+ 534          {
+ 535   1        if(num_key1 == 18)   // 切换键
+ 536   1        {
+ 537   2          menu_1++;
+ 538   2          menu_2 = 0;
+ 539   2          if(menu_1 == 1)
+ 540   2          {
+ 541   3            init_1602_dis_csf();  //初始化液晶
+ 542   3          }
+ 543   2      
+ 544   2          if(menu_1>=2)
+ 545   2          {  
+ 546   3              menu_1 = 0; 
+ 547   3              init_1602();
+ 548   3              write_1602dat('0');
+ 549   3              memset(Num_str,0,16);
+C51 COMPILER V9.59.0.0   __________                                                        10/15/2019 21:12:29 PAGE 10  
+
+ 550   3          
+ 551   3          } 
+ 552   2        }
+ 553   1        if(num_key1 == 17)  //选择键
+ 554   1        {
+ 555   2          if(menu_1 == 1)     //设置时间
+ 556   2          {
+ 557   3            menu_2 ++;
+ 558   3            if(menu_2 == 1)   //设置时间
+ 559   3            {
+ 560   4              write_string(1,0,"    :  :    W:  ");     
+ 561   4              write_string(2,0," 20  -  -       "); 
+ 562   4            }
+ 563   3            if(menu_2 > 7)
+ 564   3            {
+ 565   4              menu_2 = 0;
+ 566   4              init_1602_dis_csf() ; //初始化液晶
+ 567   4              write_guanbiao(1,2,0);//关闭光标
+ 568   4              buzzer_on();
+ 569   4              buzzer_delay();
+ 570   4              buzzer_off();
+ 571   4            }
+ 572   3          }
+ 573   2        }
+ 574   1          
+ 575   1            
+ 576   1        if((menu_1 == 1) && (menu_2 != 0))//初始的嘻嘻嘻嘻嘻嘻嘻嘻寻寻寻寻寻寻寻寻寻寻寻寻寻
+ 577   1        {
+ 578   2          
+ 579   2          if(menu_1 == 1)
+ 580   2          {
+ 581   3            if(menu_2 == 1)     //设置时
+ 582   3            {
+ 583   4              if(num_key1 == 12)  //加
+ 584   4              {
+ 585   5                shi+=0x01;
+ 586   5                if((shi & 0x0f) >= 0x0a)
+ 587   5                  shi = (shi & 0xf0) + 0x10;
+ 588   5                if(shi >= 0x24)
+ 589   5                  shi = 0;
+ 590   5              }   
+ 591   4              if(num_key1 == 13)  //减
+ 592   4              {
+ 593   5                if(shi == 0x00)
+ 594   5                  shi = 0x24;
+ 595   5                if((shi & 0x0f) == 0x00)
+ 596   5                  shi = (shi | 0x0a) - 0x10;
+ 597   5                shi -- ; 
+ 598   5              }           
+ 599   4            }
+ 600   3            if(menu_2 == 2)     //设置分
+ 601   3            {
+ 602   4              if(num_key1 == 12)  //加
+ 603   4              {
+ 604   5                fen+=0x01;
+ 605   5                if((fen & 0x0f) >= 0x0a)
+ 606   5                  fen = (fen & 0xf0) + 0x10;
+ 607   5                if(fen >= 0x60)
+ 608   5                  fen = 0;
+ 609   5              }   
+ 610   4              if(num_key1 == 13)  //减    
+ 611   4              {
+C51 COMPILER V9.59.0.0   __________                                                        10/15/2019 21:12:29 PAGE 11  
+
+ 612   5                if(fen == 0x00)
+ 613   5                  fen = 0x5a;
+ 614   5                if((fen & 0x0f) == 0x00)
+ 615   5                  fen = (fen | 0x0a) - 0x10;
+ 616   5                fen -- ;
+ 617   5              } 
+ 618   4            }
+ 619   3            if(menu_2 == 3)     //设置秒
+ 620   3            {
+ 621   4              if(num_key1 == 12)  //加
+ 622   4              {
+ 623   5                miao+=0x01;
+ 624   5                if((miao & 0x0f) >= 0x0a)
+ 625   5                  miao = (miao & 0xf0) + 0x10;
+ 626   5                if(miao >= 0x60)
+ 627   5                  miao = 0;
+ 628   5              } 
+ 629   4              if(num_key1 == 13)  //减    
+ 630   4              {
+ 631   5                if(miao == 0x00)
+ 632   5                  miao = 0x5a;
+ 633   5                if((miao & 0x0f) == 0x00)
+ 634   5                  miao = (miao | 0x0a) - 0x10;
+ 635   5                miao -- ;     
+ 636   5              }
+ 637   4            }
+ 638   3            if(menu_2 == 4)     //设置星期
+ 639   3            {
+ 640   4              if(num_key1 == 12)  //加
+ 641   4              {
+ 642   5                  week+=0x01;
+ 643   5                if((week & 0x0f) >= 0x0a)
+ 644   5                  week = (week & 0xf0) + 0x10;
+ 645   5                if(week >= 0x08)
+ 646   5                  week = 1;
+ 647   5              }   
+ 648   4              if(num_key1 == 13)  //减    
+ 649   4              {
+ 650   5                if(week == 0x01)
+ 651   5                  week = 0x08;
+ 652   5                if((week & 0x0f) == 0x00)
+ 653   5                  week = (week | 0x0a) - 0x10;
+ 654   5                week -- ;
+ 655   5              } 
+ 656   4            }
+ 657   3            if(menu_2 == 5)     //设置年
+ 658   3            {
+ 659   4              if(num_key1 == 12)  //加
+ 660   4              {
+ 661   5                  nian+=0x01;
+ 662   5                if((nian & 0x0f) >= 0x0a)
+ 663   5                  nian = (nian & 0xf0) + 0x10;
+ 664   5                if(nian >= 0x9a)
+ 665   5                  nian = 1;
+ 666   5              }   
+ 667   4              if(num_key1 == 13)  //减    
+ 668   4              {
+ 669   5                if(nian == 0x01)
+ 670   5                  nian = 0x9a;
+ 671   5                if((nian & 0x0f) == 0x00)
+ 672   5                  nian = (nian | 0x0a) - 0x10;
+ 673   5                nian -- ;   
+C51 COMPILER V9.59.0.0   __________                                                        10/15/2019 21:12:29 PAGE 12  
+
+ 674   5              } 
+ 675   4            }
+ 676   3            if(menu_2 == 6)     //设置月
+ 677   3            {
+ 678   4              if(num_key1 == 12)  //加
+ 679   4              {
+ 680   5                  yue+=0x01;
+ 681   5                if((yue & 0x0f) >= 0x0a)
+ 682   5                  yue = (yue & 0xf0) + 0x10;
+ 683   5                if(yue >= 0x12)
+ 684   5                  yue = 1;
+ 685   5              }   
+ 686   4              if(num_key1 == 13)  //减    
+ 687   4              {
+ 688   5                if(yue == 0x01)
+ 689   5                  yue = 0x13;
+ 690   5                if((yue & 0x0f) == 0x00)
+ 691   5                  yue = (yue | 0x0a) - 0x10;
+ 692   5                yue -- ;          
+ 693   5              } 
+ 694   4            }
+ 695   3            if(menu_2 == 7)     //设置日
+ 696   3            {
+ 697   4              if(num_key1 == 12)  //加
+ 698   4              {
+ 699   5                ri+=0x01;
+ 700   5              if((ri & 0x0f) >= 0x0a)
+ 701   5                ri = (ri & 0xf0) + 0x10;
+ 702   5              if(ri >= 0x32)
+ 703   5                ri = 0;     
+ 704   5              }   
+ 705   4              if(num_key1 == 13)  //减    
+ 706   4              {
+ 707   5                if(ri == 0x01)
+ 708   5                  ri = 0x32;
+ 709   5                if((ri & 0x0f) == 0x00)
+ 710   5                  ri = (ri | 0x0a) - 0x10;
+ 711   5                ri -- ;     
+ 712   5              } 
+ 713   4            }
+ 714   3            write_sfm2_ds1302(1,2,shi);    //显示时
+ 715   3            write_sfm2_ds1302(1,5,fen);    //显示分
+ 716   3            write_sfm2_ds1302(1,8,miao);     //显示秒
+ 717   3            write_sfm1(1,14,week);     //显示星期         
+ 718   3            write_sfm2_ds1302(2,3,nian);     //显示年
+ 719   3            write_sfm2_ds1302(2,6,yue);    //显示月
+ 720   3            write_sfm2_ds1302(2,9,ri);     //显示日
+ 721   3            switch(menu_2)     // 光标显示
+ 722   3            {
+ 723   4              case 1:  write_guanbiao(1,2,1);  break;
+ 724   4              case 2:  write_guanbiao(1,5,1);  break;
+ 725   4              case 3:  write_guanbiao(1,8,1);  break;
+ 726   4              case 4:  write_guanbiao(1,14,1);  break;
+ 727   4              case 5:  write_guanbiao(2,3,1);  break;
+ 728   4              case 6:  write_guanbiao(2,6,1);  break;
+ 729   4              case 7:  write_guanbiao(2,9,1);  break;
+ 730   4            }
+ 731   3            write_time();    //把时间写进去
+ 732   3          }
+ 733   2        } 
+ 734   1      } 
+ 735          /*蜂鸣器函数*/
+C51 COMPILER V9.59.0.0   __________                                                        10/15/2019 21:12:29 PAGE 13  
+
+ 736          
+ 737          /*******************语音播放歌曲***********************/
+ 738          void music_time(void)
+ 739          {
+ 740   1        while(1)
+ 741   1        {
+ 742   2         delay(300);
+ 743   2         uart_init();
+ 744   2         music_1();
+ 745   2         stop();
+ 746   2         delay(65534);
+ 747   2         nextt(); 
+ 748   2        }  
+ 749   1      } 
+ 750          /***************主函数*****************/
+ 751          void main(void)
+ 752          {
+ 753   1        P0 = P1 = P2 = P3 = 0xff;   //单片机IO口初始化为1 
+ 754   1        init_1602();
+ 755   1        init_ds1302();
+ 756   1        temperature = read_temp();  //先读出温度的值
+ 757   1        write_1602dat('0');
+ 758   1        memset(Num_str,0,16);
+ 759   1        //music_time();
+ 760   1        while(1)
+ 761   1          {
+ 762   2           value ++;
+ 763   2           if(value >= 20)
+ 764   2           {
+ 765   3              value = 0;  
+ 766   3            if((menu_1 == 1) && (menu_2 == 0))
+ 767   3            {   
+ 768   4              temperature = read_temp();  //先读出温度的值
+ 769   4              read_time();      //读时间
+ 770   4              init_1602_ds1302();   //显示时钟     
+ 771   4            }
+ 772   3           }
+ 773   2      
+ 774   2           num_key1=saom();       //读按键值
+ 775   2           delayms(10);
+ 776   2           if(num_key1<20)        //是否有按键按下，小于20时有按键按下
+ 777   2             {
+ 778   3              if(menu_1 == 0)
+ 779   3              jisuanqi();   //计算器程序
+ 780   3              key_with();
+ 781   3              
+ 782   3      
+ 783   3           }                           
+ 784   2        }
+ 785   1      }
+ 786            
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   3625    ----
+   CONSTANT SIZE    =    130    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     54       8
+   IDATA SIZE       =     12    ----
+   BIT SIZE         =      1       1
+END OF MODULE INFORMATION.
+
+C51 COMPILER V9.59.0.0   __________                                                        10/15/2019 21:12:29 PAGE 14  
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

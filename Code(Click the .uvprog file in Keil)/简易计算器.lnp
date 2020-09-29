@@ -1,0 +1,5 @@
+"简易计算器.obj",
+"buzzer.obj",
+"xyv17b.obj" 
+TO "简易计算器" 
+RAMSIZE(256) 

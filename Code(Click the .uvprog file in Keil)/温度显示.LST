@@ -1,0 +1,639 @@
+C51 COMPILER V9.59.0.0   ________                                                          10/13/2019 20:29:23 PAGE 1   
+
+
+C51 COMPILER V9.59.0.0, COMPILATION OF MODULE ________
+OBJECT MODULE PLACED IN 温度显示.OBJ
+COMPILER INVOKED BY: E:\3shiyanban\KEIL5\keil525\UV4\959\C51\BIN\C51.EXE 温度显示.c OPTIMIZE(8,SPEED) BROWSE DEBUG OBJEC
+                    -TEXTEND TABS(2)
+
+line level    source
+
+   1          #include <reg52.h>
+   2          #define uchar unsigned char
+   3          #define uint unsigned int
+   4          sbit lcdrs  =P3^5;     //液晶引脚定义
+   5          sbit led_cs = P3^6;
+   6          sbit lcden  =P3^4;
+   7          sbit boom   =P2^6;
+   8          sbit key1 = P2^5;
+   9          sbit key2 = P2^4;
+  10          sbit key3 = P2^3;
+  11          sbit keyE = P2^2;
+  12          ucharnum,key1num,key2num,count,hour,min,sec,day,mon,year,shi,fen,miao,week;
+  13          char  ye1,ye2;
+  14          uchar code cg_1602[]={0x08,0x0f,0x12,0x0f,0x0a,0x1f,0x02,0x02,
+  15          0x0f,0x09,0x0f,0x09,0x0f,0x09,0x11,0x00,
+  16          0x0f,0x09,0x09,0x0f,0x09,0x09,0x0f,0x00,
+  17          0x08,0x0f,0x12,0x0f,0x0a,0x1f,0x02,0x02,};//"年月日"
+  18          /*延时函数*/
+  19          void delay(uint xms)
+  20          {
+  21   1             uint i,j;
+  22   1             for(i=xms;i>0;i--)
+  23   1             for(j=114;j>0;j--);
+  24   1      }
+  25          /*1602液晶*/
+  26          void write_com(uchar com)//写命令
+  27          {
+  28   1             lcdrs=0;
+  29   1             lcden=0;
+  30   1             P0=com;
+  31   1             delay(5);
+  32   1             lcden=1;
+  33   1             delay(5);
+  34   1             lcden=0;
+  35   1      }
+  36          void write_data(uchar date)//写数据
+  37          {
+  38   1             lcdrs=1;
+  39   1             lcden=0;
+  40   1             P0=date;
+  41   1             delay(5);
+  42   1             lcden=1;
+  43   1             delay(5);
+  44   1             lcden=0;
+  45   1      }
+  46          void write_by_xy(uchar x,uchar y)//坐标定位
+  47          {
+  48   1             ucharaddress;
+*** ERROR C202 IN LINE 48 OF 温度显示.c: 'ucharaddress': undefined identifier
+  49   1             if(y==0)
+  50   1             address=0x80+x;//y=0,写第一行
+*** ERROR C202 IN LINE 50 OF 温度显示.c: 'address': undefined identifier
+  51   1             else
+  52   1             address=0xc0+x;//y=1,写第二行
+C51 COMPILER V9.59.0.0   ________                                                          10/13/2019 20:29:23 PAGE 2   
+
+*** ERROR C202 IN LINE 52 OF 温度显示.c: 'address': undefined identifier
+  53   1             write_com(address);
+*** ERROR C202 IN LINE 53 OF 温度显示.c: 'address': undefined identifier
+  54   1      }
+  55          /*void write_char(uchar x,uchar y,uchar date)//坐标定位显示
+  56          {
+  57                 write_by_xy(x,y);//先定位
+  58                 write_data(date);//后写数
+  59          }*/
+  60          void write_string(uchar x,uchar y,uchar *s)//写字符串
+  61          {
+  62   1             write_by_xy(x,y);//设定显示位置
+  63   1             while(*s)//writecharacter
+  64   1             {
+  65   2             P0=*s;
+  66   2             write_data(*s);
+  67   2             s++;
+  68   2             }
+  69   1      }
+  70          void write_sfm(uchar add,uchar date)//写时分秒函数
+  71          {
+  72   1             ucharhour,ge;
+*** ERROR C202 IN LINE 72 OF 温度显示.c: 'ucharhour': undefined identifier
+  73   1             hour=date/10;//分解一个2位数的十位和个位
+  74   1             ge=date%10;
+*** ERROR C202 IN LINE 74 OF 温度显示.c: 'ge': undefined identifier
+  75   1             write_com(0x80+add);//设置显示位置
+  76   1             write_data(0x30+hour);//送去液晶显示十位
+  77   1             write_data(0x30+ge);//送去液晶显示个位
+*** ERROR C202 IN LINE 77 OF 温度显示.c: 'ge': undefined identifier
+  78   1      }
+  79          void write_cg()//写入固定汉字和符号
+  80          {
+  81   1             write_com(0x40);//设定CGRAM地址
+  82   1             for(num=0;num<24;num++)//将自定义字型码写入CGRAM中
+*** ERROR C202 IN LINE 82 OF 温度显示.c: 'num': undefined identifier
+  83   1             {
+  84   2                    write_data(cg_1602[num]);
+*** ERROR C202 IN LINE 84 OF 温度显示.c: 'num': undefined identifier
+  85   2             }
+  86   1             write_com(0xc4);//年
+  87   1             {
+  88   2                    write_data(0);
+  89   2             }
+  90   1             write_com(0xc7);//月
+  91   1             {
+  92   2                    write_data(1);
+  93   2             }
+  94   1             write_com(0xca);//日
+  95   1             {
+  96   2                    write_data(2);
+  97   2             }
+  98   1             write_string(2,0,":");
+  99   1             write_string(5,0,":");
+ 100   1             write_string(0x0a,0,":");
+ 101   1             write_string(0x0d,0,":");
+ 102   1             write_string(0x0c,1,"W");
+ 103   1             write_string(0x0d,1,"K");
+ 104   1      }
+ 105          void init_1602()//初始化
+ 106          {
+ 107   1             led_cs=0;
+C51 COMPILER V9.59.0.0   ________                                                          10/13/2019 20:29:23 PAGE 3   
+
+ 108   1      hour=23;min=59;sec=55;key1num=0;count=0;day=28;mon=2;ye1=20;ye2=13;year=ye1*100+ye2;boom=0;shi=0;fen=0;mia
+             -o=0;week=7;
+ 109   1             write_com(0x38);
+ 110   1             write_com(0x0c);
+ 111   1             write_com(0x06);
+ 112   1             write_com(0x01);
+ 113   1             write_string(0,1,"2013");
+ 114   1             write_string(5,1,"02");
+ 115   1             write_string(8,1,"28");
+ 116   1             write_sfm(8,shi);
+ 117   1             write_sfm(0x0b,fen);
+ 118   1             write_sfm(0x0e,miao);
+ 119   1             write_sfm(0,hour);
+ 120   1             write_sfm(3,min);
+ 121   1             write_sfm(6,sec);
+ 122   1             write_sfm(0x48,day);
+ 123   1             write_sfm(0x45,mon);
+ 124   1             write_sfm(0x40,ye1);
+ 125   1             write_sfm(0x42,ye2);
+ 126   1             write_sfm(0x4e,week);
+ 127   1             write_cg();
+ 128   1             TMOD=0x01;//设置定时器0工作模式1
+ 129   1             TH0=(65536-50000)/256;//定时器装初值
+ 130   1             TL0=(65536-50000)%256;
+ 131   1             EA=1; //开总中断
+ 132   1             ET0=1; //开定时器0中断
+ 133   1             TR0=1; //启动定时器0
+ 134   1      }
+ 135          /*键盘扫描函数*/
+ 136          void keyscan()//按键扫描函数
+ 137          {
+ 138   1             //keyE =0;
+ 139   1             if(key1==0)
+ 140   1             {
+ 141   2                    delay(5);
+ 142   2                    if(key1==0)//确认功能键被按下
+ 143   2                    {   
+ 144   3                           key1num++;//功能键按下次数记录
+ 145   3                           while(!key1);//释放确认
+ 146   3                           if(key1num==1)//第一次被按下时
+ 147   3                           {
+ 148   4                                  TR0=0;//关闭定时器
+ 149   4                                  write_com(0x80+7);//光标定位到秒位置
+ 150   4                                  write_com(0x0f);//光标开始闪烁
+ 151   4                           }
+ 152   3                           if(key1num==2)//第二次按下光标闪烁定位到分钟位置
+ 153   3                           {
+ 154   4                                  write_com(0x80+4);
+ 155   4                           }
+ 156   3                           if(key1num==3)//第三次按下光标闪烁定位到小时位置
+ 157   3                           {
+ 158   4                                  write_com(0x80+1);
+ 159   4                           }
+ 160   3                           if(key1num==4)//第四次按下光标闪烁定位到日位置
+ 161   3                           {
+ 162   4                                  write_com(0x80+0x49);
+ 163   4                           }
+ 164   3                           if(key1num==5)//第五次按下光标闪烁定位到月位置
+ 165   3                           {
+ 166   4                                  write_com(0x80+0x46);
+ 167   4                           }
+ 168   3                           if(key1num==6)//第六次按下光标闪烁定位到年2位置
+C51 COMPILER V9.59.0.0   ________                                                          10/13/2019 20:29:23 PAGE 4   
+
+ 169   3                           {
+ 170   4                                  write_com(0x80+0x43);
+ 171   4                           }
+ 172   3                           if(key1num==7)//第七次按下光标闪烁定位到年1位置
+ 173   3                           {
+ 174   4                                  write_com(0x80+0x41);
+ 175   4                           }
+ 176   3                           if(key1num==8)//第八次按下光标闪烁定位到星期位置
+ 177   3                           {
+ 178   4                                  write_com(0x80+0x4f);
+ 179   4                           }
+ 180   3                           if(key1num==9)//第九次按下
+ 181   3                           {
+ 182   4                                  key1num=0;//记录按键数清零
+ 183   4                                  write_com(0x0c);//取消光标闪烁
+ 184   4                                  TR0=1;//启动定时器使时钟开始走
+ 185   4                           }
+ 186   3                    }
+ 187   2             }
+ 188   1             if(key1num!=0)//只有功能键被按下后，增加和减小键才有效
+ 189   1             {
+ 190   2                    if(key2==0)
+ 191   2                    {
+ 192   3                           delay(5);
+ 193   3                           if(key2==0)//增加键确认被按下
+ 194   3                           {
+ 195   4                                  while(!key2);//按键释放
+ 196   4                                  if(key1num==1)//若功能键第一次按下
+ 197   4                                  {
+ 198   5                                         sec++;//则调整秒加1
+ 199   5                                         if(sec==60)//若满60后将清零
+ 200   5                                         sec=0;
+ 201   5                                         write_sfm(6,sec);//每调节一次送液晶显示一下
+ 202   5                                         write_com(0x80+7);//显示位置重新回到调节处
+ 203   5                                  }
+ 204   4                                  if(key1num==2)//若功能键第二次按下
+ 205   4                                  {
+ 206   5                                         min++;//则调整分钟加1
+ 207   5                                         if(min==60)//若满60后将清零
+ 208   5                                         min=0;
+ 209   5                                         write_sfm(3,min);//每调节一次送液晶显示一下
+ 210   5                                         write_com(0x80+4);//显示位置重新回到调节处
+ 211   5                                  }
+ 212   4                                  if(key1num==3)//若功能键第三次按下
+ 213   4                                  {
+ 214   5                                         hour++;//则调整小时加1
+ 215   5                                         if(hour==24)//若满24后将清零
+ 216   5                                         hour=0;
+ 217   5                                         write_sfm(0,hour);;//每调节一次送液晶显示一下
+ 218   5                                         write_com(0x80+1);//显示位置重新回到调节处
+ 219   5                                  }
+ 220   4                                  if(key1num==4)//若功能键第四次按下
+ 221   4                                  {
+ 222   5                                         day++;//则调整日加1
+ 223   5                                         if(day>31)//若大于31后将置一
+ 224   5                                         day=1;
+ 225   5                                         write_sfm(0x48,day);//每调节一次送液晶显示一下
+ 226   5                                         write_com(0x80+0x48);//显示位置重新回到调节处
+ 227   5                                  }
+ 228   4                                  if(key1num==5)//若功能键第五次按下
+ 229   4                                  {
+ 230   5                                         mon++;//则调整月加1
+C51 COMPILER V9.59.0.0   ________                                                          10/13/2019 20:29:23 PAGE 5   
+
+ 231   5                                         if(mon>12)//若大于12后将置一
+ 232   5                                         mon=1;
+ 233   5                                         write_sfm(0x45,mon);//每调节一次送液晶显示一下
+ 234   5                                         write_com(0x80+0x45);//显示位置重新回到调节处
+ 235   5                                  }
+ 236   4                                  if(key1num==6)//若功能键第六次按下
+ 237   4                                  {
+ 238   5                                         ye2++;//则调整年加1
+ 239   5                                         if(ye2==0x0a)//若满99后将清零
+ 240   5                                         ye2=0;
+ 241   5                                         year=ye1*100+ye2;
+ 242   5                                         write_sfm(0x42,ye2);//每调节一次送液晶显示一下
+ 243   5                                         write_com(0x80+0x42);//显示位置重新回到调节处
+ 244   5                                  }
+ 245   4                                  if(key1num==7)//若功能键第七次按下
+ 246   4                                  {
+ 247   5                                         ye1++;//则调整年加100
+ 248   5                                         if(ye1==0x0a)//若满99后将清零
+ 249   5                                         ye1=0;
+ 250   5                                         year=ye1*100+ye2;
+ 251   5                                         write_sfm(0x40,ye1);//每调节一次送液晶显示一下
+ 252   5                                         write_com(0x80+0x40);//显示位置重新回到调节处
+ 253   5                                  }
+ 254   4                                  if(key1num==8)//若功能键第八次按下
+ 255   4                                  {
+ 256   5                                         week++;//则调整周加一
+ 257   5                                         if(week>7)//若大于7后置一
+ 258   5                                         week=1;
+ 259   5                                         write_sfm(0x4f,week);//每调节一次送液晶显示一下
+ 260   5                                         write_com(0x80+0x4f);//显示位置重新回到调节处
+ 261   5                                  }
+ 262   4                           }
+ 263   3                    }
+ 264   2                    if(key3==0)
+ 265   2                    {
+ 266   3                           delay(5);
+ 267   3                           if(key3==0)//确认减小键被按下
+ 268   3                           {
+ 269   4                                  while(!key3);//按键释放
+ 270   4                                  if(key1num==1)//若功能键第一次按下
+ 271   4                                  {
+ 272   5                                         sec--;//则调整秒减1
+ 273   5                                         if(sec==-1)//若减到负数则将其重新设置为59
+ 274   5                                                sec=59;
+ 275   5                                         write_sfm(6,sec);//每调节一次送液晶显示一下
+ 276   5                                         write_com(0x80+7);//显示位置重新回到调节处
+ 277   5                                  }
+ 278   4                                  if(key1num==2)//若功能键第二次按下
+ 279   4                                  {
+ 280   5                                         min--;//则调整分钟减1
+ 281   5                                         if(min==-1)//若减到负数则将其重新设置为59
+ 282   5                                                min=59;
+ 283   5                                         write_sfm(3,min);//每调节一次送液晶显示一下
+ 284   5                                  write_com(0x80+4);//显示位置重新回到调节处
+ 285   5                                  }
+ 286   4                                  if(key1num==3)//若功能键第三次按下
+ 287   4                                  {
+ 288   5                                         hour--;//则调整小时减1
+ 289   5                                         if(hour==-1)//若减到负数则将其重新设置为23
+ 290   5                                                hour=23;
+ 291   5                                         write_sfm(0,hour);//每调节一次送液晶显示一下
+ 292   5                                         write_com(0x80+1);//显示位置重新回到调节处
+C51 COMPILER V9.59.0.0   ________                                                          10/13/2019 20:29:23 PAGE 6   
+
+ 293   5                                  }
+ 294   4                                  if(key1num==4)//若功能键第四次按下
+ 295   4                                  {
+ 296   5                                         day--;//则调整日减1
+ 297   5                                         if(day==0)//若日为零时将置一
+ 298   5                                         day=31;
+ 299   5                                         write_sfm(0x48,day);//每调节一次送液晶显示一下
+ 300   5                                         write_com(0x80+0x49);//显示位置重新回到调节处
+ 301   5                                  }
+ 302   4                                  if(key1num==5)//若功能键第五次按下
+ 303   4                                  {
+ 304   5                                         mon--;//则调整月减1
+ 305   5                                         if(mon==0)//若月为零将置一
+ 306   5                                         mon=12;
+ 307   5                                         write_sfm(0x45,mon);//每调节一次送液晶显示一下
+ 308   5                                         write_com(0x80+0x45);//显示位置重新回到调节处
+ 309   5                                  }
+ 310   4                                  if(key1num==6)//若功能键第六次按下
+ 311   4                                  {
+ 312   5                                         ye2--;//则调整年减1
+ 313   5                                         if(ye2<0)//若小于零后将设置为99
+ 314   5                                         ye2=99;
+ 315   5                                         year=ye1*100+ye2;
+ 316   5                                         write_sfm(0x42,ye2);//每调节一次送液晶显示一下
+ 317   5                                         write_com(0x80+0x42);//显示位置重新回到调节处
+ 318   5                                  }
+ 319   4                                  if(key1num==7)//若功能键第七次按下
+ 320   4                                  {
+ 321   5                                         ye1--;//则调整年减100
+ 322   5                                         if(ye1<0)//若小于零后将设置为99
+ 323   5                                         ye1=99;
+ 324   5                                         year=ye1*100+ye2;
+ 325   5                                         write_sfm(0x40,ye1);//每调节一次送液晶显示一下
+ 326   5                                         write_com(0x80+0x40);//显示位置重新回到调节处
+ 327   5                                  }
+ 328   4                                  if(key1num==8)//若功能键第八次按下
+ 329   4                                  {
+ 330   5                                         week--;//则调整周减一
+ 331   5                                         if(week==0)//若等于0后将置7
+ 332   5                                         week=7;
+ 333   5                                         write_sfm(0x4f,week);//每调节一次送液晶显示一下
+ 334   5                                         write_com(0x80+0x4f);//显示位置重新回到调节处
+ 335   5                                  }
+ 336   4                           }
+ 337   3                    }
+ 338   2             }
+ 339   1             if(keyE==0)
+ 340   1             {
+ 341   2                    delay(5);
+ 342   2                    if(keyE==0)//确认功能键被按下
+ 343   2                    {   
+ 344   3                           key2num++;//功能键按下次数记录
+ 345   3                           while(!keyE);//释放确认
+ 346   3                           if(key2num==1)//第一次被按下时
+ 347   3                           {
+ 348   4                                  TR0=0;//关闭定时器
+ 349   4                                  write_com(0x80+0x0f);//光标定位到秒位置
+ 350   4                                  write_com(0x0f);//光标开始闪烁
+ 351   4                           }
+ 352   3                           if(key2num==2)//第二次按下光标闪烁定位到分钟位置
+ 353   3                           {
+ 354   4                                  write_com(0x80+0x0c);
+C51 COMPILER V9.59.0.0   ________                                                          10/13/2019 20:29:23 PAGE 7   
+
+ 355   4                           }
+ 356   3                           if(key2num==3)//第三次按下光标闪烁定位到小时位置
+ 357   3                           {
+ 358   4                                  write_com(0x80+9);
+ 359   4                           }
+ 360   3                           if(key2num==4)//第八次按下
+ 361   3                           {
+ 362   4                                  key2num=0;//记录按键数清零
+ 363   4                                  write_com(0x0c);//取消光标闪烁
+ 364   4                                  TR0=1;//启动定时器使时钟开始走
+ 365   4                           }
+ 366   3                           }
+ 367   2                           }
+ 368   1                    if(key2num!=0)//只有功能键被按下后，增加和减小键才有效
+ 369   1             {
+ 370   2                    if(key2==0)
+ 371   2                    {
+ 372   3                           delay(5);
+ 373   3                           if(key2==0)//增加键确认被按下
+ 374   3                           {
+ 375   4                                  while(!key2);//按键释放
+ 376   4                                  if(key2num==1)//若功能键第一次按下
+ 377   4                                  {
+ 378   5                                         miao++;//则调整秒加1
+ 379   5                                         if(miao==60)//若满60后将清零
+ 380   5                                         miao=0;
+ 381   5                                         write_sfm(0x0e,miao);//每调节一次送液晶显示一下
+ 382   5                                         write_com(0x80+0x0e);//显示位置重新回到调节处
+ 383   5                                  }
+ 384   4                                  if(key2num==2)//若功能键第二次按下
+ 385   4                                  {
+ 386   5                                         fen++;//则调整分钟加1
+ 387   5                                         if(fen==60)//若满60后将清零
+ 388   5                                         fen=0;
+ 389   5                                         write_sfm(0x0b,fen);//每调节一次送液晶显示一下
+ 390   5                                         write_com(0x80+0x0b);//显示位置重新回到调节处
+ 391   5                                  }
+ 392   4                                  if(key2num==3)//若功能键第三次按下
+ 393   4                                  {
+ 394   5                                         shi++;//则调整小时加1
+ 395   5                                         if(shi==24)//若满24后将清零
+ 396   5                                         shi=0;
+ 397   5                                         write_sfm(8,shi);;//每调节一次送液晶显示一下
+ 398   5                                         write_com(0x80+8);//显示位置重新回到调节处
+ 399   5                                  }
+ 400   4                           }
+ 401   3                    }
+ 402   2                    if(key3==0)
+ 403   2                    {
+ 404   3                           delay(5);
+ 405   3                           if(key3==0)//确认减小键被按下
+ 406   3                           {
+ 407   4                                  while(!key3);//按键释放
+ 408   4                                  if(key2num==1)//若功能键第一次按下
+ 409   4                                  {
+ 410   5                                         miao--;//则调整秒减1
+ 411   5                                         if(miao==-1)//若减到负数则将其重新设置为59
+ 412   5                                                miao=59;
+ 413   5                                         write_sfm(0x0e,miao);//每调节一次送液晶显示一下
+ 414   5                                         write_com(0x80+0x0e);//显示位置重新回到调节处
+ 415   5                                  }
+ 416   4                                  if(key2num==2)//若功能键第二次按下
+C51 COMPILER V9.59.0.0   ________                                                          10/13/2019 20:29:23 PAGE 8   
+
+ 417   4                                  {
+ 418   5                                         fen--;//则调整分钟减1
+ 419   5                                         if(fen==-1)//若减到负数则将其重新设置为59
+ 420   5                                                fen=59;
+ 421   5                                         write_sfm(0x0b,fen);//每调节一次送液晶显示一下
+ 422   5                                  write_com(0x80+0x0b);//显示位置重新回到调节处
+ 423   5                                  }
+ 424   4                                  if(key2num==3)//若功能键第三次按下
+ 425   4                                  {
+ 426   5                                         shi--;//则调整小时减1
+ 427   5                                         if(shi==-1)//若减到负数则将其重新设置为23
+ 428   5                                                shi=23;
+ 429   5                                         write_sfm(8,shi);//每调节一次送液晶显示一下
+ 430   5                                         write_com(0x80+8);//显示位置重新回到调节处
+ 431   5                                  }
+ 432   4                           }
+ 433   3                           }
+ 434   2                           }
+ 435   1      }
+ 436          /*主函数*/
+ 437          void main()
+ 438          {
+ 439   1             led_cs=0;
+ 440   1             init_1602();
+ 441   1             while(1)
+ 442   1             {
+ 443   2                    keyscan();
+ 444   2             }
+ 445   1            
+ 446   1      }
+ 447          /*中断函数*/
+ 448          void timer0() interrupt 1//定时器0中断服务程序
+ 449          {
+ 450   1             TH0=(65536-50000)/256;//再次装定时器初值
+ 451   1             TL0=(65536-50000)%256;
+ 452   1             count++;//中断次数累加
+ 453   1             if(count==20)//20次50毫秒为1秒
+ 454   1             {
+ 455   2                    count=0;
+ 456   2                    sec++;
+ 457   2                    if(sec==60)//秒加到60则进位分钟
+ 458   2                    {
+ 459   3                           sec=0;//同时秒数清零
+ 460   3                           min++;
+ 461   3                           if(min==60)//分钟加到60则进位小时
+ 462   3                           {
+ 463   4                                  min=0;//同时分钟数清零
+ 464   4                                  hour++;
+ 465   4                                  //boom=1;
+ 466   4                                  //delay(5);
+ 467   4                                  //boom=0;
+ 468   4                                  if(hour==24)//小时加到24则小时清零
+ 469   4                                  {
+ 470   5                                         hour=0;
+ 471   5                                         day++;
+ 472   5                                         week++;
+ 473   5                                         if(week>7)
+ 474   5                                         {
+ 475   6                                         week=1;
+ 476   6                                         }
+ 477   5                                         if(mon==1)
+ 478   5                                         {
+C51 COMPILER V9.59.0.0   ________                                                          10/13/2019 20:29:23 PAGE 9   
+
+ 479   6                                          if(day>31)
+ 480   6                                          {
+ 481   7                                          day=1;
+ 482   7                                          mon++;
+ 483   7                                          }
+ 484   6                                          }
+ 485   5                                          if(mon==2)
+ 486   5                                         {
+ 487   6                                          if((year%4==0 &&year%100!=0)||year%4==0)
+ 488   6                                          {
+ 489   7                                          if(day>29)
+ 490   7                                          {
+ 491   8                                          day=1;
+ 492   8                                          mon++;
+ 493   8                                          }
+ 494   7                                          }
+ 495   6                                          else if(day>28)
+ 496   6                                          {
+ 497   7                                          day=1;
+ 498   7                                          mon++;
+ 499   7                                          }
+ 500   6                                          }
+ 501   5                                          if(mon==3)
+ 502   5                                         {
+ 503   6                                          if(day>31)
+ 504   6                                          {
+ 505   7                                          day=1;
+ 506   7                                          mon++;
+ 507   7                                          }
+ 508   6                                          }
+ 509   5                                          if(mon==4)
+ 510   5                                         {
+ 511   6                                          if(day>30)
+ 512   6                                          {
+ 513   7                                          day=1;
+ 514   7                                          mon++;
+ 515   7                                          }
+ 516   6                                          }
+ 517   5                                          if(mon==5)
+ 518   5                                         {
+ 519   6                                          if(day>31)
+ 520   6                                          {
+ 521   7                                          day=1;
+ 522   7                                          mon++;
+ 523   7                                          }
+ 524   6                                          }
+ 525   5                                          if(mon==6)
+ 526   5                                         {
+ 527   6                                          if(day>30)
+ 528   6                                          {
+ 529   7                                          day=1;
+ 530   7                                          mon++;
+ 531   7                                          }
+ 532   6                                          }
+ 533   5                                          if(mon==7)
+ 534   5                                         {
+ 535   6                                          if(day>31)
+ 536   6                                          {
+ 537   7                                          day=1;
+ 538   7                                          mon++;
+ 539   7                                          }
+ 540   6                                          }
+C51 COMPILER V9.59.0.0   ________                                                          10/13/2019 20:29:23 PAGE 10  
+
+ 541   5                                          if(mon==8)
+ 542   5                                         {
+ 543   6                                          if(day>31)
+ 544   6                                          {
+ 545   7                                          day=1;
+ 546   7                                          mon++;
+ 547   7                                          }
+ 548   6                                          }if(mon==9)
+ 549   5                                         {
+ 550   6                                          if(day>30)
+ 551   6                                          {
+ 552   7                                          day=1;
+ 553   7                                          mon++;
+ 554   7                                          }
+ 555   6                                          }
+ 556   5                                          if(mon==10)
+ 557   5                                         {
+ 558   6                                          if(day>31)
+ 559   6                                          {
+ 560   7                                          day=1;
+ 561   7                                          mon++;
+ 562   7                                          }
+ 563   6                                          }
+ 564   5                                          if(mon==11)
+ 565   5                                         {
+ 566   6                                          if(day>30)
+ 567   6                                          {
+ 568   7                                          day=1;
+ 569   7                                          mon++;
+ 570   7                                          }
+ 571   6                                          }
+ 572   5                                          if(mon==12)
+ 573   5                                         {
+ 574   6                                          if(day>31)
+ 575   6                                          {
+ 576   7                                          day=1;
+ 577   7                                          mon=1;
+ 578   7                                          ye2++;
+ 579   7                                          }
+ 580   6                                          }
+ 581   5                                          }
+ 582   4                                          write_sfm(0x4e,week);
+ 583   4                                          write_sfm(0x48,day);
+ 584   4                                          write_sfm(0x45,mon);
+ 585   4                              write_sfm(0x40,ye1);
+ 586   4                                          write_sfm(0x42,ye2);
+ 587   4                                  }
+ 588   3                                  write_sfm(0,hour);//小时若变化则重新写入
+ 589   3                           }
+ 590   2                           write_sfm(3,min);//分钟若变化则重新写入
+ 591   2                    }
+ 592   1                    write_sfm(6,sec);//秒若变化则重新写入
+ 593   1                           if((hour==shi&& min==fen) && sec==miao)
+ 594   1             {
+ 595   2                    boom=1;
+ 596   2                    delay(5);
+ 597   2                    boom=0;
+ 598   2             }
+ 599   1             }
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  9 ERROR(S)

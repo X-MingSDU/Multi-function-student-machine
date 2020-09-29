@@ -1,0 +1,599 @@
+#include <reg52.h>
+#define uchar unsigned char
+#define uint unsigned int
+sbit lcdrs  =P3^5;     //液晶引脚定义
+sbit led_cs = P3^6;
+sbit lcden  =P3^4;
+sbit boom   =P2^6;
+sbit key1 = P2^5;
+sbit key2 = P2^4;
+sbit key3 = P2^3;
+sbit keyE = P2^2;
+ucharnum,key1num,key2num,count,hour,min,sec,day,mon,year,shi,fen,miao,week;
+char  ye1,ye2;
+uchar code cg_1602[]={0x08,0x0f,0x12,0x0f,0x0a,0x1f,0x02,0x02,
+0x0f,0x09,0x0f,0x09,0x0f,0x09,0x11,0x00,
+0x0f,0x09,0x09,0x0f,0x09,0x09,0x0f,0x00,
+0x08,0x0f,0x12,0x0f,0x0a,0x1f,0x02,0x02,};//"年月日"
+/*延时函数*/
+void delay(uint xms)
+{
+       uint i,j;
+       for(i=xms;i>0;i--)
+       for(j=114;j>0;j--);
+}
+/*1602液晶*/
+void write_com(uchar com)//写命令
+{
+       lcdrs=0;
+       lcden=0;
+       P0=com;
+       delay(5);
+       lcden=1;
+       delay(5);
+       lcden=0;
+}
+void write_data(uchar date)//写数据
+{
+       lcdrs=1;
+       lcden=0;
+       P0=date;
+       delay(5);
+       lcden=1;
+       delay(5);
+       lcden=0;
+}
+void write_by_xy(uchar x,uchar y)//坐标定位
+{
+       ucharaddress;
+       if(y==0)
+       address=0x80+x;//y=0,写第一行
+       else
+       address=0xc0+x;//y=1,写第二行
+       write_com(address);
+}
+/*void write_char(uchar x,uchar y,uchar date)//坐标定位显示
+{
+       write_by_xy(x,y);//先定位
+       write_data(date);//后写数
+}*/
+void write_string(uchar x,uchar y,uchar *s)//写字符串
+{
+       write_by_xy(x,y);//设定显示位置
+       while(*s)//writecharacter
+       {
+       P0=*s;
+       write_data(*s);
+       s++;
+       }
+}
+void write_sfm(uchar add,uchar date)//写时分秒函数
+{
+       ucharhour,ge;
+       hour=date/10;//分解一个2位数的十位和个位
+       ge=date%10;
+       write_com(0x80+add);//设置显示位置
+       write_data(0x30+hour);//送去液晶显示十位
+       write_data(0x30+ge);//送去液晶显示个位
+}
+void write_cg()//写入固定汉字和符号
+{
+       write_com(0x40);//设定CGRAM地址
+       for(num=0;num<24;num++)//将自定义字型码写入CGRAM中
+       {
+              write_data(cg_1602[num]);
+       }
+       write_com(0xc4);//年
+       {
+              write_data(0);
+       }
+       write_com(0xc7);//月
+       {
+              write_data(1);
+       }
+       write_com(0xca);//日
+       {
+              write_data(2);
+       }
+       write_string(2,0,":");
+       write_string(5,0,":");
+       write_string(0x0a,0,":");
+       write_string(0x0d,0,":");
+       write_string(0x0c,1,"W");
+       write_string(0x0d,1,"K");
+}
+void init_1602()//初始化
+{
+       led_cs=0;
+hour=23;min=59;sec=55;key1num=0;count=0;day=28;mon=2;ye1=20;ye2=13;year=ye1*100+ye2;boom=0;shi=0;fen=0;miao=0;week=7;
+       write_com(0x38);
+       write_com(0x0c);
+       write_com(0x06);
+       write_com(0x01);
+       write_string(0,1,"2013");
+       write_string(5,1,"02");
+       write_string(8,1,"28");
+       write_sfm(8,shi);
+       write_sfm(0x0b,fen);
+       write_sfm(0x0e,miao);
+       write_sfm(0,hour);
+       write_sfm(3,min);
+       write_sfm(6,sec);
+       write_sfm(0x48,day);
+       write_sfm(0x45,mon);
+       write_sfm(0x40,ye1);
+       write_sfm(0x42,ye2);
+       write_sfm(0x4e,week);
+       write_cg();
+       TMOD=0x01;//设置定时器0工作模式1
+       TH0=(65536-50000)/256;//定时器装初值
+       TL0=(65536-50000)%256;
+       EA=1; //开总中断
+       ET0=1; //开定时器0中断
+       TR0=1; //启动定时器0
+}
+/*键盘扫描函数*/
+void keyscan()//按键扫描函数
+{
+       //keyE =0;
+       if(key1==0)
+       {
+              delay(5);
+              if(key1==0)//确认功能键被按下
+              {   
+                     key1num++;//功能键按下次数记录
+                     while(!key1);//释放确认
+                     if(key1num==1)//第一次被按下时
+                     {
+                            TR0=0;//关闭定时器
+                            write_com(0x80+7);//光标定位到秒位置
+                            write_com(0x0f);//光标开始闪烁
+                     }
+                     if(key1num==2)//第二次按下光标闪烁定位到分钟位置
+                     {
+                            write_com(0x80+4);
+                     }
+                     if(key1num==3)//第三次按下光标闪烁定位到小时位置
+                     {
+                            write_com(0x80+1);
+                     }
+                     if(key1num==4)//第四次按下光标闪烁定位到日位置
+                     {
+                            write_com(0x80+0x49);
+                     }
+                     if(key1num==5)//第五次按下光标闪烁定位到月位置
+                     {
+                            write_com(0x80+0x46);
+                     }
+                     if(key1num==6)//第六次按下光标闪烁定位到年2位置
+                     {
+                            write_com(0x80+0x43);
+                     }
+                     if(key1num==7)//第七次按下光标闪烁定位到年1位置
+                     {
+                            write_com(0x80+0x41);
+                     }
+                     if(key1num==8)//第八次按下光标闪烁定位到星期位置
+                     {
+                            write_com(0x80+0x4f);
+                     }
+                     if(key1num==9)//第九次按下
+                     {
+                            key1num=0;//记录按键数清零
+                            write_com(0x0c);//取消光标闪烁
+                            TR0=1;//启动定时器使时钟开始走
+                     }
+              }
+       }
+       if(key1num!=0)//只有功能键被按下后，增加和减小键才有效
+       {
+              if(key2==0)
+              {
+                     delay(5);
+                     if(key2==0)//增加键确认被按下
+                     {
+                            while(!key2);//按键释放
+                            if(key1num==1)//若功能键第一次按下
+                            {
+                                   sec++;//则调整秒加1
+                                   if(sec==60)//若满60后将清零
+                                   sec=0;
+                                   write_sfm(6,sec);//每调节一次送液晶显示一下
+                                   write_com(0x80+7);//显示位置重新回到调节处
+                            }
+                            if(key1num==2)//若功能键第二次按下
+                            {
+                                   min++;//则调整分钟加1
+                                   if(min==60)//若满60后将清零
+                                   min=0;
+                                   write_sfm(3,min);//每调节一次送液晶显示一下
+                                   write_com(0x80+4);//显示位置重新回到调节处
+                            }
+                            if(key1num==3)//若功能键第三次按下
+                            {
+                                   hour++;//则调整小时加1
+                                   if(hour==24)//若满24后将清零
+                                   hour=0;
+                                   write_sfm(0,hour);;//每调节一次送液晶显示一下
+                                   write_com(0x80+1);//显示位置重新回到调节处
+                            }
+                            if(key1num==4)//若功能键第四次按下
+                            {
+                                   day++;//则调整日加1
+                                   if(day>31)//若大于31后将置一
+                                   day=1;
+                                   write_sfm(0x48,day);//每调节一次送液晶显示一下
+                                   write_com(0x80+0x48);//显示位置重新回到调节处
+                            }
+                            if(key1num==5)//若功能键第五次按下
+                            {
+                                   mon++;//则调整月加1
+                                   if(mon>12)//若大于12后将置一
+                                   mon=1;
+                                   write_sfm(0x45,mon);//每调节一次送液晶显示一下
+                                   write_com(0x80+0x45);//显示位置重新回到调节处
+                            }
+                            if(key1num==6)//若功能键第六次按下
+                            {
+                                   ye2++;//则调整年加1
+                                   if(ye2==0x0a)//若满99后将清零
+                                   ye2=0;
+                                   year=ye1*100+ye2;
+                                   write_sfm(0x42,ye2);//每调节一次送液晶显示一下
+                                   write_com(0x80+0x42);//显示位置重新回到调节处
+                            }
+                            if(key1num==7)//若功能键第七次按下
+                            {
+                                   ye1++;//则调整年加100
+                                   if(ye1==0x0a)//若满99后将清零
+                                   ye1=0;
+                                   year=ye1*100+ye2;
+                                   write_sfm(0x40,ye1);//每调节一次送液晶显示一下
+                                   write_com(0x80+0x40);//显示位置重新回到调节处
+                            }
+                            if(key1num==8)//若功能键第八次按下
+                            {
+                                   week++;//则调整周加一
+                                   if(week>7)//若大于7后置一
+                                   week=1;
+                                   write_sfm(0x4f,week);//每调节一次送液晶显示一下
+                                   write_com(0x80+0x4f);//显示位置重新回到调节处
+                            }
+                     }
+              }
+              if(key3==0)
+              {
+                     delay(5);
+                     if(key3==0)//确认减小键被按下
+                     {
+                            while(!key3);//按键释放
+                            if(key1num==1)//若功能键第一次按下
+                            {
+                                   sec--;//则调整秒减1
+                                   if(sec==-1)//若减到负数则将其重新设置为59
+                                          sec=59;
+                                   write_sfm(6,sec);//每调节一次送液晶显示一下
+                                   write_com(0x80+7);//显示位置重新回到调节处
+                            }
+                            if(key1num==2)//若功能键第二次按下
+                            {
+                                   min--;//则调整分钟减1
+                                   if(min==-1)//若减到负数则将其重新设置为59
+                                          min=59;
+                                   write_sfm(3,min);//每调节一次送液晶显示一下
+                            write_com(0x80+4);//显示位置重新回到调节处
+                            }
+                            if(key1num==3)//若功能键第三次按下
+                            {
+                                   hour--;//则调整小时减1
+                                   if(hour==-1)//若减到负数则将其重新设置为23
+                                          hour=23;
+                                   write_sfm(0,hour);//每调节一次送液晶显示一下
+                                   write_com(0x80+1);//显示位置重新回到调节处
+                            }
+                            if(key1num==4)//若功能键第四次按下
+                            {
+                                   day--;//则调整日减1
+                                   if(day==0)//若日为零时将置一
+                                   day=31;
+                                   write_sfm(0x48,day);//每调节一次送液晶显示一下
+                                   write_com(0x80+0x49);//显示位置重新回到调节处
+                            }
+                            if(key1num==5)//若功能键第五次按下
+                            {
+                                   mon--;//则调整月减1
+                                   if(mon==0)//若月为零将置一
+                                   mon=12;
+                                   write_sfm(0x45,mon);//每调节一次送液晶显示一下
+                                   write_com(0x80+0x45);//显示位置重新回到调节处
+                            }
+                            if(key1num==6)//若功能键第六次按下
+                            {
+                                   ye2--;//则调整年减1
+                                   if(ye2<0)//若小于零后将设置为99
+                                   ye2=99;
+                                   year=ye1*100+ye2;
+                                   write_sfm(0x42,ye2);//每调节一次送液晶显示一下
+                                   write_com(0x80+0x42);//显示位置重新回到调节处
+                            }
+                            if(key1num==7)//若功能键第七次按下
+                            {
+                                   ye1--;//则调整年减100
+                                   if(ye1<0)//若小于零后将设置为99
+                                   ye1=99;
+                                   year=ye1*100+ye2;
+                                   write_sfm(0x40,ye1);//每调节一次送液晶显示一下
+                                   write_com(0x80+0x40);//显示位置重新回到调节处
+                            }
+                            if(key1num==8)//若功能键第八次按下
+                            {
+                                   week--;//则调整周减一
+                                   if(week==0)//若等于0后将置7
+                                   week=7;
+                                   write_sfm(0x4f,week);//每调节一次送液晶显示一下
+                                   write_com(0x80+0x4f);//显示位置重新回到调节处
+                            }
+                     }
+              }
+       }
+       if(keyE==0)
+       {
+              delay(5);
+              if(keyE==0)//确认功能键被按下
+              {   
+                     key2num++;//功能键按下次数记录
+                     while(!keyE);//释放确认
+                     if(key2num==1)//第一次被按下时
+                     {
+                            TR0=0;//关闭定时器
+                            write_com(0x80+0x0f);//光标定位到秒位置
+                            write_com(0x0f);//光标开始闪烁
+                     }
+                     if(key2num==2)//第二次按下光标闪烁定位到分钟位置
+                     {
+                            write_com(0x80+0x0c);
+                     }
+                     if(key2num==3)//第三次按下光标闪烁定位到小时位置
+                     {
+                            write_com(0x80+9);
+                     }
+                     if(key2num==4)//第八次按下
+                     {
+                            key2num=0;//记录按键数清零
+                            write_com(0x0c);//取消光标闪烁
+                            TR0=1;//启动定时器使时钟开始走
+                     }
+                     }
+                     }
+              if(key2num!=0)//只有功能键被按下后，增加和减小键才有效
+       {
+              if(key2==0)
+              {
+                     delay(5);
+                     if(key2==0)//增加键确认被按下
+                     {
+                            while(!key2);//按键释放
+                            if(key2num==1)//若功能键第一次按下
+                            {
+                                   miao++;//则调整秒加1
+                                   if(miao==60)//若满60后将清零
+                                   miao=0;
+                                   write_sfm(0x0e,miao);//每调节一次送液晶显示一下
+                                   write_com(0x80+0x0e);//显示位置重新回到调节处
+                            }
+                            if(key2num==2)//若功能键第二次按下
+                            {
+                                   fen++;//则调整分钟加1
+                                   if(fen==60)//若满60后将清零
+                                   fen=0;
+                                   write_sfm(0x0b,fen);//每调节一次送液晶显示一下
+                                   write_com(0x80+0x0b);//显示位置重新回到调节处
+                            }
+                            if(key2num==3)//若功能键第三次按下
+                            {
+                                   shi++;//则调整小时加1
+                                   if(shi==24)//若满24后将清零
+                                   shi=0;
+                                   write_sfm(8,shi);;//每调节一次送液晶显示一下
+                                   write_com(0x80+8);//显示位置重新回到调节处
+                            }
+                     }
+              }
+              if(key3==0)
+              {
+                     delay(5);
+                     if(key3==0)//确认减小键被按下
+                     {
+                            while(!key3);//按键释放
+                            if(key2num==1)//若功能键第一次按下
+                            {
+                                   miao--;//则调整秒减1
+                                   if(miao==-1)//若减到负数则将其重新设置为59
+                                          miao=59;
+                                   write_sfm(0x0e,miao);//每调节一次送液晶显示一下
+                                   write_com(0x80+0x0e);//显示位置重新回到调节处
+                            }
+                            if(key2num==2)//若功能键第二次按下
+                            {
+                                   fen--;//则调整分钟减1
+                                   if(fen==-1)//若减到负数则将其重新设置为59
+                                          fen=59;
+                                   write_sfm(0x0b,fen);//每调节一次送液晶显示一下
+                            write_com(0x80+0x0b);//显示位置重新回到调节处
+                            }
+                            if(key2num==3)//若功能键第三次按下
+                            {
+                                   shi--;//则调整小时减1
+                                   if(shi==-1)//若减到负数则将其重新设置为23
+                                          shi=23;
+                                   write_sfm(8,shi);//每调节一次送液晶显示一下
+                                   write_com(0x80+8);//显示位置重新回到调节处
+                            }
+                     }
+                     }
+                     }
+}
+/*主函数*/
+void main()
+{
+       led_cs=0;
+       init_1602();
+       while(1)
+       {
+              keyscan();
+       }
+      
+}
+/*中断函数*/
+void timer0() interrupt 1//定时器0中断服务程序
+{
+       TH0=(65536-50000)/256;//再次装定时器初值
+       TL0=(65536-50000)%256;
+       count++;//中断次数累加
+       if(count==20)//20次50毫秒为1秒
+       {
+              count=0;
+              sec++;
+              if(sec==60)//秒加到60则进位分钟
+              {
+                     sec=0;//同时秒数清零
+                     min++;
+                     if(min==60)//分钟加到60则进位小时
+                     {
+                            min=0;//同时分钟数清零
+                            hour++;
+                            //boom=1;
+                            //delay(5);
+                            //boom=0;
+                            if(hour==24)//小时加到24则小时清零
+                            {
+                                   hour=0;
+                                   day++;
+                                   week++;
+                                   if(week>7)
+                                   {
+                                   week=1;
+                                   }
+                                   if(mon==1)
+                                   {
+                                    if(day>31)
+                                    {
+                                    day=1;
+                                    mon++;
+                                    }
+                                    }
+                                    if(mon==2)
+                                   {
+                                    if((year%4==0 &&year%100!=0)||year%4==0)
+                                    {
+                                    if(day>29)
+                                    {
+                                    day=1;
+                                    mon++;
+                                    }
+                                    }
+                                    else if(day>28)
+                                    {
+                                    day=1;
+                                    mon++;
+                                    }
+                                    }
+                                    if(mon==3)
+                                   {
+                                    if(day>31)
+                                    {
+                                    day=1;
+                                    mon++;
+                                    }
+                                    }
+                                    if(mon==4)
+                                   {
+                                    if(day>30)
+                                    {
+                                    day=1;
+                                    mon++;
+                                    }
+                                    }
+                                    if(mon==5)
+                                   {
+                                    if(day>31)
+                                    {
+                                    day=1;
+                                    mon++;
+                                    }
+                                    }
+                                    if(mon==6)
+                                   {
+                                    if(day>30)
+                                    {
+                                    day=1;
+                                    mon++;
+                                    }
+                                    }
+                                    if(mon==7)
+                                   {
+                                    if(day>31)
+                                    {
+                                    day=1;
+                                    mon++;
+                                    }
+                                    }
+                                    if(mon==8)
+                                   {
+                                    if(day>31)
+                                    {
+                                    day=1;
+                                    mon++;
+                                    }
+                                    }if(mon==9)
+                                   {
+                                    if(day>30)
+                                    {
+                                    day=1;
+                                    mon++;
+                                    }
+                                    }
+                                    if(mon==10)
+                                   {
+                                    if(day>31)
+                                    {
+                                    day=1;
+                                    mon++;
+                                    }
+                                    }
+                                    if(mon==11)
+                                   {
+                                    if(day>30)
+                                    {
+                                    day=1;
+                                    mon++;
+                                    }
+                                    }
+                                    if(mon==12)
+                                   {
+                                    if(day>31)
+                                    {
+                                    day=1;
+                                    mon=1;
+                                    ye2++;
+                                    }
+                                    }
+                                    }
+                                    write_sfm(0x4e,week);
+                                    write_sfm(0x48,day);
+                                    write_sfm(0x45,mon);
+                        write_sfm(0x40,ye1);
+                                    write_sfm(0x42,ye2);
+                            }
+                            write_sfm(0,hour);//小时若变化则重新写入
+                     }
+                     write_sfm(3,min);//分钟若变化则重新写入
+              }
+              write_sfm(6,sec);//秒若变化则重新写入
+                     if((hour==shi&& min==fen) && sec==miao)
+       {
+              boom=1;
+              delay(5);
+              boom=0;
+       }
+       }

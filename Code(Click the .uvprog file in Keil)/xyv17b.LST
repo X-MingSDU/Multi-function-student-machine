@@ -1,0 +1,149 @@
+C51 COMPILER V9.59.0.0   XYV17B                                                            10/15/2019 19:20:29 PAGE 1   
+
+
+C51 COMPILER V9.59.0.0, COMPILATION OF MODULE XYV17B
+OBJECT MODULE PLACED IN xyv17b.OBJ
+COMPILER INVOKED BY: E:\3shiyanban\KEIL5\keil525\UV4\959\C51\BIN\C51.EXE xyv17b.c OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTE
+                    -XTEND TABS(2)
+
+line level    source
+
+   1          #include<reg52.h>
+   2          #include<intrins.h>
+   3          #include "XYV17B.h"
+   4          #include "buzzer.h"
+   5          #define uchar unsigned char 
+   6          #define uint unsigned int
+   7          #define XTAL 11059200 // CUP 晶振频率
+   8          #define baudrate 9600 // 通信波特率
+   9          #define uchar unsigned char 
+  10          #define uint unsigned int
+  11          unsigned char rtemp,sflag;
+  12          unsigned char TestBuff[3];
+  13          unsigned char mode=0;
+  14          unsigned char ArrayIndex=0;
+  15          unsigned int g=1;  
+  16          ///*1s大概三个delay(65534)*/
+  17          
+  18          /*uart_init 功能：初始化串口*/
+  19          
+  20          void uart_init()
+  21          {
+  22   1        delay(300);//记得短暂延时，使语音模块进入工作状态 
+  23   1        TMOD = 0x20; // 定时器1工作于8位自动重载模式, 用于产生波特率
+  24   1        TH1=(unsigned char)(256 - (XTAL / (32L * 12L * baudrate)));
+  25   1        TL1=(unsigned char)(256 - (XTAL / (32L * 12L * baudrate))); // 定时器0赋初值
+  26   1        SCON = 0x50;
+  27   1        PCON = 0x00;
+  28   1        TR1 = 1;
+  29   1        ES = 1; //打开接收中断
+  30   1        EA =1;  //打开总中断 
+  31   1      } 
+  32          /*uart_tx_byte 功能：串口发送一个字节*/
+  33          void uart_tx_byte(uchar str)
+  34          {
+  35   1        ES=0;//发送期间关闭串口中断
+  36   1        SBUF=str;
+  37   1        while(TI==0);
+  38   1        TI = 0;
+  39   1        ES=1;//发送完成打开串口中断
+  40   1      }
+  41          /*uart_tx_string 功能：串口发送一个字符串*/
+  42          void music_1(void)//第一首 good_job
+  43          {
+  44   1         uart_tx_byte(0xAA);
+  45   1         uart_tx_byte(0x07);
+  46   1         uart_tx_byte(0x02); 
+  47   1         uart_tx_byte(0x00);
+  48   1         uart_tx_byte(0x01); 
+  49   1         uart_tx_byte(0xB4); 
+  50   1         for(;g<=3;g++)
+  51   1        delay(65534);
+  52   1      }
+  53          void music_2(void)//第二首 game_lose
+  54          { 
+C51 COMPILER V9.59.0.0   XYV17B                                                            10/15/2019 19:20:29 PAGE 2   
+
+  55   1         uart_tx_byte(0xAA);
+  56   1         uart_tx_byte(0x07);
+  57   1         uart_tx_byte(0x02);
+  58   1         uart_tx_byte(0x00);
+  59   1         uart_tx_byte(0x02);
+  60   1         uart_tx_byte(0xB5); 
+  61   1         /*for(;g<=36;g++)
+  62   1         {delayKey(65534);}*/
+  63   1      }
+  64          void music_3(void)  //第三首 speed_down
+  65          { 
+  66   1         uart_tx_byte(0xAA);
+  67   1         uart_tx_byte(0x07);
+  68   1         uart_tx_byte(0x02);
+  69   1         uart_tx_byte(0x00);
+  70   1         uart_tx_byte(0x03);
+  71   1         uart_tx_byte(0xB6); 
+  72   1         /*for(;g<=3;g++)
+  73   1         {delayKey(65534);}*/
+  74   1      }
+  75          /*void soundMax(void)    //使音量最大
+  76          {
+  77             uart_tx_byte(0xAA);
+  78             uart_tx_byte(0x13);
+  79             uart_tx_byte(0x01);
+  80             uart_tx_byte(0x1E);
+  81             uart_tx_byte(0xDC);
+  82          }*/
+  83          void stop(void)
+  84            //0xAA, 0x03, 0x00, 0xAD, 
+  85          {
+  86   1         uart_tx_byte(0xAA);
+  87   1         uart_tx_byte(0x03);
+  88   1         uart_tx_byte(0x00);
+  89   1         uart_tx_byte(0xAD);
+  90   1      }
+  91          void nextt(void)
+  92          {
+  93   1      //0xAA, 0x02, 0x00, 0xAC, 
+  94   1         uart_tx_byte(0xAA);
+  95   1         uart_tx_byte(0x02);
+  96   1         uart_tx_byte(0x00);
+  97   1         uart_tx_byte(0xAC);
+  98   1      } 
+  99          void SerialService() interrupt 4 //中断函数
+ 100          { 
+ 101   1       if(RI) 
+ 102   1       { 
+ 103   2        RI=0; 
+ 104   2        if(mode==0)
+ 105   2          {//如果处于通的测试模式
+ 106   3           TestBuff[ArrayIndex]=SBUF; //读缓冲区
+ 107   3          ArrayIndex++; 
+ 108   3          } 
+ 109   2        if(ArrayIndex==3)
+ 110   2        {
+ 111   3        sflag=1;
+ 112   3        }
+ 113   2       } 
+ 114   1      }
+ 115          //发送的数据或命令,高 8 位数据在前，低 8 位在后。
+ 116          /*
+C51 COMPILER V9.59.0.0   XYV17B                                                            10/15/2019 19:20:29 PAGE 3   
+
+ 117          SBUF：51单片机中的特殊寄存器，串行数据缓冲器（一个接收一个发送），
+ 118          两个其实是共用的一个地址99H，但是两个在物理上面是分开的。
+ 119          当发送使用时，就采用SBUF=XXX;  （XXX为需要传送的数据）
+ 120          当接收使用时，采用XXX=SBUF
+ 121          */
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    193    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =      9    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)
