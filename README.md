@@ -1,6 +1,6 @@
 [TOC]
 
-## A Multifunctional student computer based on 51 single chip microcomputer
+## A Multifunctional student computer based on 51 single chip microcomputer(See pictures in README.pdf)
 
 > Hardware: Stc89c52 and some electronic components
 >
