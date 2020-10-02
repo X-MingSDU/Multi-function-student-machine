@@ -12,22 +12,22 @@ extern float atof (char *s1);
 extern int sprintf  (char *, const char *, ...);
 extern int strlen (char *);
 
-float num1;		           //  保存第一个数
-float num2;		           //  保存第二个数
-uchar jjcc;		           //  加减乘除标志变量
-uchar Lcd_Str[17];   //  显示区缓存
+float num1;		           //  保存第一个数 Save the first number
+float num2;		           //  保存第二个数 Save the second number
+uchar jjcc;		           //  加减乘除标志变量 Operational character
+uchar Lcd_Str[17];   //  显示区缓存 display the flash
 uchar Num_str[17];
 uchar value,menu_1;
 uchar Lcd_num2_add = 0;	   //  第二个数据开始位的增量
-uchar idata Lcd_dis1_i = 0;	   //  记录显示第一行字符
-uchar idata Lcd_num1_i = 0;	   //  记录num1 是几位数
+uchar idata Lcd_dis1_i = 0;	   //  记录显示第一行字符 display the character in the first row
+uchar idata Lcd_num1_i = 0;	   //  记录num1 是几位数 
 uchar idata Lcd_num2_i = 0;	   //  记录num2 是几位数
 uchar idata num_key1;
 
-uchar idata Dian_i = 0;	       //  小数点位数
+uchar idata Dian_i = 0;	       //  小数点位数 decimal
 
 sbit dq   = P1^4;	  //18b20 IO口的定义
-uint temperature ;    //温度变量
+uint temperature ;    //温度变量 
 
 
 /********************** ********************
@@ -43,14 +43,14 @@ void delayms(uchar z)
 	  for(y=110;y>0;y--);
 }
 /******************************************/
-sbit key_delete = P1^5;    //删除键
-sbit key_qiehuan = P1^6; //切换键
+sbit key_delete = P1^5;    //删除键 delete
+sbit key_qiehuan = P1^6; //切换键 switch
 //sbit key_stop = P1^7;
 //sbit key_nextt = P3^7;
 
 uchar Key_io;		  //  暂存IO值
 uchar Key_jl;		  //  松手检测自锁变量
-uchar Key_value;	  //  返回键值
+uchar Key_value;	  //  返回键值 return the Key_value
 uchar Key_D_bit;
 bit Key_qh_bit;
 uchar menu_2;
@@ -267,7 +267,7 @@ void fuhao(uchar s)
 	}
 }
 
-/***********************18b20初始化函数*****************************/
+/***********************18b20初始化函数  Initialize the 18b20 *****************************/
 void init_18b20()
 {
 	bit q;
@@ -282,7 +282,7 @@ void init_18b20()
 	dq = 1;				//把总线拿高 释放总线
 }
 
-/*************写18b20内的数据***************/
+/*************写18b20内的数据 write data from 18b20***************/
 void write_18b20(uchar dat)
 {
 	uchar i;
@@ -296,7 +296,7 @@ void write_18b20(uchar dat)
 	}	
 }
 
-/*************读取18b20内的数据***************/
+/*************读取18b20内的数据 read the data in 18b20***************/
 uchar read_18b20()
 {
 	uchar i,value;
@@ -312,7 +312,7 @@ uchar read_18b20()
 	return value;		 //返回数据
 }
 
-/*************读取温度的值 读出来的是小数***************/
+/*************读取温度的值 读出来的是小数 read the temperature***************/
 uint read_temp()
 {
 	uint value;
@@ -338,7 +338,7 @@ uint read_temp()
 }
 
 
-/******************写星期函数*******************/
+/******************写星期函数 week function*******************/
 void write_week(uchar hang,uchar add,uchar week)//写星期函数
 {
 	if(hang==1)   
@@ -384,7 +384,7 @@ void write_week(uchar hang,uchar add,uchar week)//写星期函数
 	}
 }
 
-/*************定时器0初始化程序***************/
+/*************定时器0初始化程序 initialize the timer***************/
 void init_1602_ds1302()
 {
 	write_sfm2_ds1302(1,1,shi);		   //显示时
@@ -397,7 +397,7 @@ void init_1602_ds1302()
 	write_sfm2_ds1302(2,8,ri);	   //显示日 	
 }
 
-/**********************设置函数************************/
+/**********************设置函数 functions relating to the calculator************************/
 void jisuanqi()
 {
   switch(num_key1)
@@ -529,7 +529,7 @@ void jisuanqi()
   }						
 }	
 
-/**********************设置函数************************/
+/**********************设置函数 Meaning of the keys************************/
 void key_with()
 {
 	if(num_key1 == 18)   // 切换键
@@ -711,13 +711,13 @@ void key_with()
 					ri -- ;			
 				}	
 			}
-			write_sfm2_ds1302(1,2,shi);	   //显示时
-			write_sfm2_ds1302(1,5,fen);	   //显示分
-			write_sfm2_ds1302(1,8,miao);	   //显示秒
-			write_sfm1(1,14,week);	   //显示星期					
-			write_sfm2_ds1302(2,3,nian);	   //显示年
-			write_sfm2_ds1302(2,6,yue);	   //显示月
-			write_sfm2_ds1302(2,9,ri);	   //显示日
+			write_sfm2_ds1302(1,2,shi);	   //显示时 hour
+			write_sfm2_ds1302(1,5,fen);	   //显示分 minute
+			write_sfm2_ds1302(1,8,miao);	   //显示秒 second
+			write_sfm1(1,14,week);	   //显示星期				week	
+			write_sfm2_ds1302(2,3,nian);	   //显示年 year
+			write_sfm2_ds1302(2,6,yue);	   //显示月 month
+			write_sfm2_ds1302(2,9,ri);	   //显示日 date
 			switch(menu_2)	   // 光标显示
 			{
 				case 1:  write_guanbiao(1,2,1);  break;
@@ -734,7 +734,7 @@ void key_with()
 }	
 /*蜂鸣器函数*/
 
-/*******************语音播放歌曲***********************/
+/*******************语音播放歌曲 Music play***********************/
 void music_time(void)
 {
 	while(1)
@@ -747,16 +747,16 @@ void music_time(void)
 	 nextt();	
   }  
 }	
-/***************主函数*****************/
+/***************主函数 Main function*****************/
 void main(void)
 {
-  P0 = P1 = P2 = P3 = 0xff;		//单片机IO口初始化为1	
+  P0 = P1 = P2 = P3 = 0xff;		//单片机IO口初始化为1	Initialize the IO 
   init_1602();
 	init_ds1302();
-  temperature = read_temp();	//先读出温度的值
+  temperature = read_temp();	//先读出温度的值 read the temperature
   write_1602dat('0');
   memset(Num_str,0,16);
-	//music_time();
+	music_time();
   while(1)
     {
 	   value ++;
